@@ -1,0 +1,79 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+  - Class: rviz_common/Views
+    Name: Views
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Alpha: 0.45
+      Cell Size: 0.5
+      Class: rviz_default_plugins/Grid
+      Color: 90; 90; 90
+      Enabled: true
+      Line Style:
+        Line Width: 0.03
+        Value: Lines
+      Name: XY Grid
+      Normal Cell Count: 0
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Plane: XY
+      Plane Cell Count: 24
+      Reference Frame: livox_frame
+      Value: true
+    - Class: rviz_default_plugins/Axes
+      Enabled: true
+      Length: 1.0
+      Name: XYZ Axes
+      Radius: 0.03
+      Reference Frame: livox_frame
+      Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Channel Name: intensity
+      Class: rviz_default_plugins/PointCloud2
+      Color Transformer: Intensity
+      Decay Time: 1
+      Enabled: true
+      Name: MID360 Bag /livox/lidar
+      Position Transformer: XYZ
+      Queue Size: 20
+      Selectable: true
+      Size (Pixels): 2
+      Size (m): 0.01
+      Style: Points
+      Topic:
+        Value: /livox/lidar
+      Use Fixed Frame: true
+      Value: true
+  Enabled: true
+  Global Options:
+    Background Color: 18; 18; 18
+    Fixed Frame: livox_frame
+    Frame Rate: 30
+  Name: root
+  Tools:
+    - Class: rviz_default_plugins/Interact
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/Select
+    - Class: rviz_default_plugins/Measure
+  Value: true
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 6
+      Focal Point:
+        X: 3.0
+        Y: -1.6
+        Z: 0.1
+      Name: Current View
+      Pitch: 0.45
+      Target Frame: livox_frame
+      Yaw: 2.35
+    Saved: ~
+Window Geometry:
+  Height: 900
+  Width: 1400
