@@ -119,8 +119,7 @@ Visualization Manager:
       Name: Draggable Hole Spheres
       Show Axes: true
       Show Descriptions: true
-      Update Topic:
-        Value: /manual_lidar_holes/update
+      Update Topic: /manual_lidar_holes/update
       Value: true
   Enabled: true
   Global Options:
