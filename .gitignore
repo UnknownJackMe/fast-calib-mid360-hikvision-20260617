@@ -11,6 +11,7 @@ output/*
 !output/final_success_20260617/colored_cloud.pcd
 !output/final_success_20260617/colored_cloud.ply
 !output/final_success_20260617/filtered_cloud.ply
+!output/final_success_20260617/manual_lidar_holes.yaml
 !output/final_success_20260617/qr_detect.png
 build/*
 install/*

@@ -2,9 +2,88 @@
 #include <pcl/registration/transformation_estimation_svd.h>
 #include <rclcpp/rclcpp.hpp>
 
+#include <fstream>
+#include <regex>
+#include <string>
+#include <vector>
+
 #include "common_lib.h"
 #include "../src/data_preprocess.hpp"
 #include "../src/qr_detect.hpp"
+
+std::vector<pcl::PointXYZ> defaultManualCenters()
+{
+  return {
+      pcl::PointXYZ(3.57454f, 0.07096f, 0.11873f),
+      pcl::PointXYZ(3.55390f, -0.43180f, 0.14098f),
+      pcl::PointXYZ(3.54801f, 0.06100f, -0.27500f),
+      pcl::PointXYZ(3.52758f, -0.45020f, -0.25500f),
+  };
+}
+
+std::vector<pcl::PointXYZ> loadManualCentersFromYaml(const std::string &path)
+{
+  if (path.empty())
+  {
+    return defaultManualCenters();
+  }
+
+  std::ifstream input(path);
+  if (!input.is_open())
+  {
+    throw std::runtime_error("Failed to open manual LiDAR centers YAML: " + path);
+  }
+
+  std::regex coord_re(R"(^\s*([xyz]):\s*([-+0-9.eE]+)\s*$)");
+  std::smatch match;
+  std::string line;
+  bool have_x = false;
+  bool have_y = false;
+  bool have_z = false;
+  float x = 0.0f;
+  float y = 0.0f;
+  float z = 0.0f;
+  std::vector<pcl::PointXYZ> centers;
+
+  while (std::getline(input, line))
+  {
+    if (!std::regex_match(line, match, coord_re))
+    {
+      continue;
+    }
+
+    const auto key = match[1].str();
+    const auto value = std::stof(match[2].str());
+    if (key == "x")
+    {
+      x = value;
+      have_x = true;
+    }
+    else if (key == "y")
+    {
+      y = value;
+      have_y = true;
+    }
+    else if (key == "z")
+    {
+      z = value;
+      have_z = true;
+    }
+
+    if (have_x && have_y && have_z)
+    {
+      centers.push_back(pcl::PointXYZ(x, y, z));
+      have_x = have_y = have_z = false;
+    }
+  }
+
+  if (centers.size() != 4)
+  {
+    throw std::runtime_error("Expected 4 manual LiDAR centers in " + path + ", got " + std::to_string(centers.size()));
+  }
+
+  return centers;
+}
 
 int main(int argc, char **argv)
 {
@@ -12,6 +91,10 @@ int main(int argc, char **argv)
   auto node = std::make_shared<rclcpp::Node>("fast_calib");
 
   Params params = loadParameters(node);
+  node->declare_parameter("manual_lidar_centers_path", std::string(""));
+  std::string manual_lidar_centers_path;
+  node->get_parameter_or("manual_lidar_centers_path", manual_lidar_centers_path, std::string(""));
+
   DataPreprocessPtr dataPreprocessPtr;
   dataPreprocessPtr.reset(new DataPreprocess(params));
 
@@ -38,10 +121,20 @@ int main(int argc, char **argv)
 
   pcl::PointCloud<pcl::PointXYZ>::Ptr lidar_center_cloud(new pcl::PointCloud<pcl::PointXYZ>);
   lidar_center_cloud->reserve(4);
-  lidar_center_cloud->push_back(pcl::PointXYZ(3.57454f, 0.07096f, 0.11873f));
-  lidar_center_cloud->push_back(pcl::PointXYZ(3.55390f, -0.43180f, 0.14098f));
-  lidar_center_cloud->push_back(pcl::PointXYZ(3.54801f, 0.06100f, -0.27500f));
-  lidar_center_cloud->push_back(pcl::PointXYZ(3.52758f, -0.45020f, -0.25500f));
+  try
+  {
+    const auto manual_centers = loadManualCentersFromYaml(manual_lidar_centers_path);
+    for (const auto &center : manual_centers)
+    {
+      lidar_center_cloud->push_back(center);
+    }
+  }
+  catch (const std::exception &e)
+  {
+    RCLCPP_ERROR(node->get_logger(), "%s", e.what());
+    rclcpp::shutdown();
+    return 4;
+  }
 
   pcl::PointCloud<pcl::PointXYZ>::Ptr qr_centers(new pcl::PointCloud<pcl::PointXYZ>);
   pcl::PointCloud<pcl::PointXYZ>::Ptr lidar_centers(new pcl::PointCloud<pcl::PointXYZ>);

@@ -70,6 +70,14 @@ Expected 4 LiDAR circle centers, got 2
 2. 在 RViz 里人工确认四个孔。
 3. 用 `manual_lidar_centers_calib` 手工四孔版本出外参。
 
+现在推荐直接使用可视化交互流程：
+
+```bash
+scripts/interactive_calibration_workflow.sh <scene_name> 25
+```
+
+它会自动采集、生成静态点云、打开 RViz 四球编辑器，并在保存球心后继续出外参。详细说明见 `calibration_record/interactive_workflow.md`。
+
 启动静态点云 + 孔位显示：
 
 ```bash
@@ -144,4 +152,3 @@ output/<scene_name>_manual_four_holes/qr_detect.png
 - `colored_cloud.pcd` / `colored_cloud.ply` 能生成；
 - RViz 中四个孔位球和点云空洞对应；
 - 不要使用明显异常结果，例如平移 Z 达到数米的结果。
-

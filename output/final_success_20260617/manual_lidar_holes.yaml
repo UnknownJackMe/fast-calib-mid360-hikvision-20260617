@@ -1,0 +1,19 @@
+frame_id: livox_frame
+topic: /static_accumulated_cloud
+centers:
+- name: upper +Y
+  x: 3.57454
+  y: 0.07096
+  z: 0.11873
+- name: upper -Y
+  x: 3.5539
+  y: -0.4318
+  z: 0.14098
+- name: lower +Y
+  x: 3.54801
+  y: 0.061
+  z: -0.275
+- name: lower -Y
+  x: 3.52758
+  y: -0.4502
+  z: -0.255

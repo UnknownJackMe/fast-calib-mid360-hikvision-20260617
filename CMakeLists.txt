@@ -93,6 +93,10 @@ install(TARGETS
 install(PROGRAMS
   scripts/capture_and_run_scene.sh
   scripts/diagnose_board_plane.py
+  scripts/interactive_calibration_workflow.sh
+  scripts/interactive_lidar_hole_editor.py
+  scripts/publish_detected_holes.py
+  scripts/publish_static_cloud_with_holes.py
   scripts/run_fast_calib_scene.sh
   DESTINATION lib/${PROJECT_NAME}
 )
