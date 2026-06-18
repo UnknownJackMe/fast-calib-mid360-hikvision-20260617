@@ -32,15 +32,16 @@ if [[ ! "$scene_name" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]*$ ]]; then
   exit 64
 fi
 
-fast_calib_root=${FAST_CALIB_ROOT:-/home/vision/FAST-Calib}
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+fast_calib_root=${FAST_CALIB_ROOT:-$(cd "${script_dir}/.." && pwd)}
 cd "$fast_calib_root"
 
 base_config=${BASE_CONFIG:-config/qr_params.yaml}
-data_dir="/home/vision/FAST-Calib/calib_data/${scene_name}"
+data_dir="${fast_calib_root}/calib_data/${scene_name}"
 bag_dir="${data_dir}/lidar_bag"
 image_path="${data_dir}/image.png"
-output_dir="/home/vision/FAST-Calib/output/${scene_name}"
-config_path="/home/vision/FAST-Calib/config/qr_params_${scene_name}.yaml"
+output_dir="${fast_calib_root}/output/${scene_name}"
+config_path="${fast_calib_root}/config/qr_params_${scene_name}.yaml"
 
 if [[ -e "$data_dir" || -e "$output_dir" || -e "$config_path" ]]; then
   echo "Refusing to overwrite existing scene artifacts:" >&2
@@ -52,10 +53,17 @@ fi
 
 set +u
 source /opt/ros/humble/setup.bash
-if [[ -f /home/vision/moving_scaning_hku/ros2_livox_ws/install/setup.bash ]]; then
-  source /home/vision/moving_scaning_hku/ros2_livox_ws/install/setup.bash
+workspace_setup=${ROS_WORKSPACE_SETUP:-}
+if [[ -n "$workspace_setup" ]]; then
+  source "$workspace_setup"
+elif [[ -f "${fast_calib_root}/install/setup.bash" ]]; then
+  source "${fast_calib_root}/install/setup.bash"
+elif [[ -f "${fast_calib_root}/../../install/setup.bash" ]]; then
+  source "${fast_calib_root}/../../install/setup.bash"
+else
+  echo "Cannot find workspace setup.bash. Build the package first or set ROS_WORKSPACE_SETUP." >&2
+  exit 69
 fi
-source install/setup.bash
 set -u
 
 mkdir -p "$data_dir" "$output_dir"

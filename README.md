@@ -1,200 +1,224 @@
-# FAST-Calib MID360 + Hikvision 标定归档
+# FAST-Calib MID360 + Hikvision
 
-这个仓库是本机 `/home/vision/FAST-Calib` 的 ROS2 FAST-Calib 工作区归档，已经包含：
+ROS 2 calibration toolkit for Livox MID360 LiDAR and Hikvision industrial cameras.
 
-- MID360 + Hikvision 相机的 ROS2 部署脚本；
-- 本次最终成功的采集数据和外参结果；
-- 可视化交互式标定流程：采集 -> 静态点云 -> RViz2 拖动四个孔位球 -> 保存球心 -> 出外参；
-- 标定过程中遇到的问题、设备配置和复现记录。
+This project packages a practical FAST-Calib workflow for static target calibration:
 
-完整记录见：
+- capture one Hikvision image and one MID360 `sensor_msgs/msg/PointCloud2` bag;
+- run FAST-Calib to extract camera observations and a static accumulated LiDAR cloud;
+- open RViz2 with four directly draggable interactive spheres;
+- let the operator place the spheres on the four physical board holes;
+- save the LiDAR hole centers and solve the LiDAR-camera extrinsic parameters.
 
-```text
-calibration_record/
-```
+The repository is intended to be usable as a standalone open-source project. You should source this workspace's `install/setup.bash`, not another project's install space.
 
-关键文档：
+## Hardware
 
-- `calibration_record/quick_start.md`：下次重新标定的最短流程。
-- `calibration_record/interactive_workflow.md`：RViz2 拖球交互式标定流程。
-- `calibration_record/device_config.md`：设备、网络、相机、雷达、标定板参数。
-- `calibration_record/pitfalls_and_solutions.md`：踩坑记录和解决方案。
-- `calibration_record/final_result_20260617.md`：本次最终外参结果。
+- Ubuntu 22.04 + ROS 2 Humble
+- Livox MID360
+- Hikvision USB/GigE industrial camera supported by MVS SDK
+- Four-hole ArUco calibration board
 
-## 本次最终结果
+Default target parameters used by the included configs:
 
-最终外参文件：
+- ArUco dictionary: `DICT_4X4_50`
+- ArUco IDs: `[0, 1, 3, 2]`
+- Hole spacing: `0.500 m x 0.400 m`
+- Hole radius: `0.120 m`
+- LiDAR topic: `/livox/lidar`
+- LiDAR frame: `livox_frame`
 
-```text
-output/final_success_20260617/calib_result.txt
-```
+## Dependencies
 
-最终采集数据：
-
-```text
-calib_data/final_success_20260617/
-```
-
-本次四孔配准 RMSE：
-
-```text
-0.004935 m
-```
-
-外参：
-
-```yaml
-Rcl: [  0.006071,  -0.999079,   0.042474,
-        0.013104,  -0.042391,  -0.999015,
-        0.999896,   0.006622,   0.012835]
-Pcl: [  0.022384,  -0.085765,   0.002566]
-```
-
-本次结果是基于 RViz/静态点云中人工确认的四个 LiDAR 孔位计算的，孔位文件为：
-
-```text
-output/final_success_20260617/manual_lidar_holes.yaml
-```
-
-## 推荐标定流程：RViz2 可视化拖球
-
-准备环境：
+Install ROS 2 and common build/runtime packages:
 
 ```bash
-cd /home/vision/FAST-Calib
+sudo apt update
+sudo apt install -y \
+  ros-humble-desktop \
+  ros-humble-pcl-ros \
+  ros-humble-pcl-conversions \
+  ros-humble-rosbag2 \
+  ros-humble-interactive-markers \
+  python3-colcon-common-extensions \
+  python3-yaml \
+  libopencv-dev \
+  libpcl-dev
+```
+
+Install vendor SDKs:
+
+- Hikvision MVS SDK, expected under `/opt/MVS`
+- Livox-SDK2, providing `livox_lidar_sdk_shared`
+- `livox_ros_driver2`, either installed system-wide or built in the same ROS 2 workspace as this package
+
+Recommended workspace layout:
+
+```text
+calib_ws/
+  src/
+    FAST-Calib/
+    livox_ros_driver2/
+```
+
+Build from the workspace root:
+
+```bash
+cd ~/calib_ws
 source /opt/ros/humble/setup.bash
-source /home/vision/moving_scaning_hku/ros2_livox_ws/install/setup.bash
+colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
 source install/setup.bash
 ```
 
-启动一键交互式流程：
+If you build directly from this repository root, the same rule applies:
 
 ```bash
-scripts/interactive_calibration_workflow.sh <scene_name> 25
+cd ~/FAST-Calib
+source /opt/ros/humble/setup.bash
+colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
+source install/setup.bash
 ```
 
-脚本会：
+Do not source another application repository such as `moving_scaning_hku`. If `livox_ros_driver2` is not found after sourcing this workspace, install it or build it in the same workspace.
 
-1. 抓取 Hikvision 图像；
-2. 录制 MID360 `/livox/lidar` 点云 bag；
-3. 运行 FAST-Calib 生成累计静态点云 `filtered_cloud.ply`；
-4. 自动生成 RViz 配置；
-5. 打开 RViz2 显示完整静态点云和四个可拖动球；
-6. 用户将四个球拖到标定板四个孔；
-7. 保存球心 YAML；
-8. 使用这四个 LiDAR 孔位和相机检测结果输出外参。
+## Configuration
 
-RViz 里拖完球后，另开终端保存：
+Edit these files before collecting new data:
+
+- `config/livox_mid360_fast_calib.json`: MID360 IP and Livox connection settings
+- `config/qr_params.yaml`: camera intrinsics, target geometry, input/output defaults
+
+The included MID360 launch file starts `livox_ros_driver2` and publishes `/livox/lidar` as `sensor_msgs/msg/PointCloud2`:
 
 ```bash
-cd /home/vision/FAST-Calib
+ros2 launch fast_calib mid360_pointcloud2_launch.py
+```
+
+The capture workflow starts this driver automatically if `/livox/lidar` is not already available.
+
+## Interactive Calibration
+
+Run the full workflow:
+
+```bash
+cd ~/calib_ws
+source /opt/ros/humble/setup.bash
+source install/setup.bash
+cd src/FAST-Calib
+./scripts/interactive_calibration_workflow.sh scene_001 25
+```
+
+If running from the source repository root:
+
+```bash
+cd ~/FAST-Calib
+source /opt/ros/humble/setup.bash
+source install/setup.bash
+./scripts/interactive_calibration_workflow.sh scene_001 25
+```
+
+The script will:
+
+1. capture a Hikvision image;
+2. record a MID360 bag for the requested duration;
+3. generate `config/qr_params_<scene>.yaml`;
+4. run FAST-Calib once to create `output/<scene>/filtered_cloud.ply`;
+5. start `scripts/interactive_lidar_hole_editor.py`;
+6. open RViz2 with `output/<scene>/manual_lidar_hole_editor.rviz`;
+7. wait for you to place and save the four hole centers;
+8. run `manual_lidar_centers_calib` and write the final result.
+
+In RViz2:
+
+1. Select the `Interact` tool.
+2. Drag the four colored spheres directly onto the four physical holes.
+3. Save the positions from another terminal:
+
+```bash
 source /opt/ros/humble/setup.bash
 ros2 service call /save_lidar_hole_markers std_srvs/srv/Trigger {}
 ```
 
-然后回到流程脚本终端按 Enter，脚本会继续出外参。
+Then return to the workflow terminal and press Enter.
 
-## 重新编译
+If your workspace setup file is not in one of the standard locations above, set it explicitly:
 
 ```bash
-cd /home/vision/FAST-Calib
-source /opt/ros/humble/setup.bash
-colcon build --packages-select fast_calib --cmake-args -DCMAKE_BUILD_TYPE=Release
-source install/setup.bash
+export ROS_WORKSPACE_SETUP=/path/to/your/workspace/install/setup.bash
 ```
 
-如果遇到 PCL/libusb 运行时错误：
+Generated files:
+
+```text
+calib_data/<scene>/image.png
+calib_data/<scene>/lidar_bag/
+config/qr_params_<scene>.yaml
+output/<scene>/filtered_cloud.ply
+output/<scene>/manual_lidar_holes.yaml
+output/<scene>_manual_four_holes/calib_result.txt
+```
+
+## Run Existing Data
+
+For an existing config:
+
+```bash
+source /opt/ros/humble/setup.bash
+source install/setup.bash
+./scripts/run_fast_calib_scene.sh config/qr_params_<scene>.yaml
+```
+
+For manual LiDAR centers:
+
+```bash
+CLEAN_LD=$(printf '%s' "${LD_LIBRARY_PATH:-}" | tr ':' '\n' | grep -v '^/opt/MVS/lib' | paste -sd:)
+env LD_LIBRARY_PATH="$CLEAN_LD" ros2 run fast_calib manual_lidar_centers_calib \
+  --ros-args \
+  --params-file config/qr_params_<scene>.yaml \
+  -p manual_lidar_centers_path:=output/<scene>/manual_lidar_holes.yaml \
+  -p output_path:=output/<scene>_manual_four_holes
+```
+
+## Troubleshooting
+
+If PCL or FAST-Calib fails with:
 
 ```text
 undefined symbol: libusb_set_option
 ```
 
-需要过滤 Hikvision MVS SDK 的旧 libusb：
+Hikvision MVS probably put an older `libusb` ahead of the system library. Run calibration commands with `/opt/MVS/lib` removed from `LD_LIBRARY_PATH`, as shown above.
+
+If RViz2 shows the cloud but the spheres are not draggable:
+
+- the display must be `rviz_default_plugins/InteractiveMarkers`;
+- `Interactive Markers Namespace` must be `/manual_lidar_holes`;
+- the active RViz tool must be `Interact`.
+
+If `/livox/lidar` is missing, verify:
 
 ```bash
-CLEAN_LD=$(printf '%s' "${LD_LIBRARY_PATH:-}" | tr ':' '\n' | grep -v '^/opt/MVS/lib' | paste -sd:)
-env LD_LIBRARY_PATH="$CLEAN_LD" ros2 run fast_calib manual_lidar_centers_calib ...
+ros2 topic list -t | grep /livox/lidar
+ros2 topic hz /livox/lidar
 ```
 
-## 设备配置摘要
+## Reference Records
 
-- ROS：Humble
-- LiDAR：Livox MID360
-- LiDAR topic：`/livox/lidar`
-- Topic type：`sensor_msgs/msg/PointCloud2`
-- MID360 IP：`192.168.1.30`
-- 主机 Livox 有线侧 IP：`192.168.1.50`
-- 相机：Hikvision，序列号 `DA3217436`
-- 标定板 ArUco dictionary：`DICT_4X4_50`
-- ArUco IDs：`[0, 1, 3, 2]`
-- 四孔间距：`0.500 m x 0.400 m`
-- 孔半径：`0.120 m`
+The `calibration_record/` directory contains the field notes from the first successful MID360 + Hikvision calibration, including device settings, pitfalls, and the final verified result.
 
-注意：不要把 MID360 改回 `192.168.1.3`，该地址会和本机 Wi-Fi/RDP 冲突。
+Useful files:
 
----
+- `calibration_record/interactive_workflow.md`
+- `calibration_record/device_config.md`
+- `calibration_record/pitfalls_and_solutions.md`
+- `calibration_record/final_result_20260617.md`
 
-# FAST-Calib ROS2 版本
+Final reference output from that run:
 
-在 [engine1wu](https://github.com/hku-mars/FAST-Calib/issues/35) 的基础上将 ROS1 的 FAST-Calib 项目转换成了 ROS2。仅在 ubuntu 22.04 humble 上进行了测试。
-## 运行说明
-### 参数配置
-在`calib_data/mid360_11`中提供了测试数据，是将[sample data](https://connecthkuhk-my.sharepoint.com/:f:/g/personal/zhengcr_connect_hku_hk/Eq_k_4Mf_11Eggg4a5lbRzgBHwd0EivtCJd2ExtcNlu1FA?e=vjm4gH)中的`mid360/11`点云裁剪后转成了ros2格式。只需要修改 `config/qr_params.yaml` 文件中的路径相关的参数就可以跑这组测试数据了，其中`bag_path`是*ros2 bag PointCloud2*的文件夹。
-### 启动节点
-```bash
-ros2 launch fast_calib calib.launch.py
+```text
+output/final_success_20260617/calib_result.txt
 ```
 
+## Upstream
 
-# FAST-Calib
-FAST-Calib is an automatic target-based extrinsic calibration tool for LiDAR-camera systems (eg., [FAST-LIVO2](https://github.com/hku-mars/FAST-LIVO2)). 
-
-**Key highlights include:** 
-
-1. Support solid-state and mechanical LiDAR.
-2. No need for any initial extrinsic parameters.
-3. Achieve highly accurate calibration results **in just 2 seconds**.
-
-**In short, it makes extrinsic calibration as simple as intrinsic calibration.**
-
-📬 For further assistance or inquiries, please feel free to contact Chunran Zheng at zhengcr@connect.hku.hk.
-
-<p align="center">
-  <img src="./pics/calib.jpg" width="100%">
-  <font color=#a0a0a0 size=2>Left: Example of circle extraction from Mid360 point cloud | Right: Point cloud colored with calibrated extrinsic.</font>
-</p>
-
-## 1. Prerequisites
-PCL>=1.8, OpenCV>=4.0.
-
-## 2. Run our examples
-1. Prepare the static acquisition data in `calib_data` folder (see [sample data](https://connecthkuhk-my.sharepoint.com/:f:/g/personal/zhengcr_connect_hku_hk/Eq_k_4Mf_11Eggg4a5lbRzgBHwd0EivtCJd2ExtcNlu1FA?e=vjm4gH) from Mid360, Avia and Ouster):
-- rosbag containing point cloud messages
-- corresponding image
-
-2. Run the calibration process:
-```bash
-roslaunch fast_calib calib.launch
-```
-
-## 3. Run on your own sensor suite
-1. Customize the calibration target in the image below.
-2. Record data to rosbag.
-3. Provide the instrinsic matrix in `qr_params.yaml`.
-4. Set distance filter in `qr_params.yaml` for board point cloud (extra points are acceptable).
-5. Calibrate now!
-
-<p align="center">
-  <img src="./pics/calibration_target.jpg" width="100%">
-  <font color=#a0a0a0 size=2>Left: Actual calibration target | Right: Technical drawing with annotated dimensions.</font>
-</p>
-
-## 4. Appendix
-Related article is coming soon...
-
-The calibration target design is based on the [velo2cam_calibration](https://github.com/beltransen/velo2cam_calibration).
-
-For further details on the algorithm workflow, see [this document](https://github.com/xuankuzcr/FAST-Calib/blob/main/workflow.md).
-## 5. Acknowledgments
-
-Special thanks to [Jiaming Xu](https://github.com/Xujiaming1) for his support, [Haotian Li](https://github.com/luo-xue) for the equipment, and the [velo2cam_calibration](https://github.com/beltransen/velo2cam_calibration) algorithm.
+This repository is based on the ROS 2 port work discussed from FAST-Calib and extends it with MID360/Hikvision capture tools plus an RViz2 interactive four-hole workflow.

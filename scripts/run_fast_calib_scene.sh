@@ -9,7 +9,8 @@ fi
 config_yaml=$1
 output_dir=${2:-}
 
-fast_calib_root=${FAST_CALIB_ROOT:-/home/vision/FAST-Calib}
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+fast_calib_root=${FAST_CALIB_ROOT:-$(cd "${script_dir}/.." && pwd)}
 cd "$fast_calib_root"
 
 if [[ -z "$output_dir" ]]; then
@@ -27,10 +28,17 @@ fi
 
 set +u
 source /opt/ros/humble/setup.bash
-if [[ -f /home/vision/moving_scaning_hku/ros2_livox_ws/install/setup.bash ]]; then
-  source /home/vision/moving_scaning_hku/ros2_livox_ws/install/setup.bash
+workspace_setup=${ROS_WORKSPACE_SETUP:-}
+if [[ -n "$workspace_setup" ]]; then
+  source "$workspace_setup"
+elif [[ -f "${fast_calib_root}/install/setup.bash" ]]; then
+  source "${fast_calib_root}/install/setup.bash"
+elif [[ -f "${fast_calib_root}/../../install/setup.bash" ]]; then
+  source "${fast_calib_root}/../../install/setup.bash"
+else
+  echo "Cannot find workspace setup.bash. Build the package first or set ROS_WORKSPACE_SETUP." >&2
+  exit 69
 fi
-source install/setup.bash
 set -u
 
 clean_ld=$(printf '%s' "${LD_LIBRARY_PATH:-}" | tr ':' '\n' | grep -v '^/opt/MVS/lib' | paste -sd:)

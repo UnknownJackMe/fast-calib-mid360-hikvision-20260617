@@ -25,23 +25,31 @@ fi
 
 scene_name=$1
 duration_s=${2:-25}
-fast_calib_root=${FAST_CALIB_ROOT:-/home/vision/FAST-Calib}
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+fast_calib_root=${FAST_CALIB_ROOT:-$(cd "${script_dir}/.." && pwd)}
 cd "$fast_calib_root"
 
-data_dir="/home/vision/FAST-Calib/calib_data/${scene_name}"
-output_dir="/home/vision/FAST-Calib/output/${scene_name}"
-config_path="/home/vision/FAST-Calib/config/qr_params_${scene_name}.yaml"
+data_dir="${fast_calib_root}/calib_data/${scene_name}"
+output_dir="${fast_calib_root}/output/${scene_name}"
+config_path="${fast_calib_root}/config/qr_params_${scene_name}.yaml"
 static_cloud="${output_dir}/filtered_cloud.ply"
 centers_file="${output_dir}/manual_lidar_holes.yaml"
 rviz_file="${output_dir}/manual_lidar_hole_editor.rviz"
-manual_output_dir="/home/vision/FAST-Calib/output/${scene_name}_manual_four_holes"
+manual_output_dir="${fast_calib_root}/output/${scene_name}_manual_four_holes"
 
 set +u
 source /opt/ros/humble/setup.bash
-if [[ -f /home/vision/moving_scaning_hku/ros2_livox_ws/install/setup.bash ]]; then
-  source /home/vision/moving_scaning_hku/ros2_livox_ws/install/setup.bash
+workspace_setup=${ROS_WORKSPACE_SETUP:-}
+if [[ -n "$workspace_setup" ]]; then
+  source "$workspace_setup"
+elif [[ -f "${fast_calib_root}/install/setup.bash" ]]; then
+  source "${fast_calib_root}/install/setup.bash"
+elif [[ -f "${fast_calib_root}/../../install/setup.bash" ]]; then
+  source "${fast_calib_root}/../../install/setup.bash"
+else
+  echo "Cannot find workspace setup.bash. Build the package first or set ROS_WORKSPACE_SETUP." >&2
+  exit 69
 fi
-source install/setup.bash
 set -u
 
 echo "Capturing scene: ${scene_name}"
@@ -191,7 +199,7 @@ RViz is open.
 Move the four colored spheres onto the four physical holes in the static cloud.
 When done, save the positions from another terminal:
 
-  cd /home/vision/FAST-Calib
+  cd "$fast_calib_root"
   source /opt/ros/humble/setup.bash
   ros2 service call /save_lidar_hole_markers std_srvs/srv/Trigger {}
 
