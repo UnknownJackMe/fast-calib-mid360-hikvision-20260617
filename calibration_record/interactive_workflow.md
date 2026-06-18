@@ -124,6 +124,6 @@ centers:
 
 - RDP 下不要播放实时 rosbag；这个流程只发布低频静态点云。
 - 如果没有生成 `filtered_cloud.ply`，通常是相机没有识别到 ArUco 或 FAST-Calib 在相机阶段失败。
-- 如果 RViz 没看到球，确认已添加 `MarkerArray` display，`Topic` 为 `/manual_lidar_hole_markers`。
-- 如果 RViz 中不能拖动球，确认已添加 `InteractiveMarkers` display，`Interactive Markers Namespace` 为 `/manual_lidar_holes`，不是手动填写 `Update Topic`。
+- RViz 中只需要 `InteractiveMarkers` display；`Interactive Markers Namespace` 必须是 `/manual_lidar_holes`。
+- 小球本体是 `MOVE_3D` control。选择工具栏 `Interact` 后，直接拖动小球本体，不需要拖轴。
 - 如果运行标定时报 `libusb_set_option`，按 `pitfalls_and_solutions.md` 过滤 `/opt/MVS/lib`。

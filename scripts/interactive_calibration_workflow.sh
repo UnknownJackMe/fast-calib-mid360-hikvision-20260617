@@ -114,24 +114,11 @@ Visualization Manager:
         Value: /static_accumulated_cloud
       Use Fixed Frame: true
       Value: true
-    - Class: rviz_default_plugins/MarkerArray
-      Enabled: true
-      Name: Manual Hole Marker View
-      Namespaces:
-        manual_lidar_hole_labels: true
-        manual_lidar_hole_markers: true
-      Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /manual_lidar_hole_markers
-      Value: true
     - Class: rviz_default_plugins/InteractiveMarkers
       Enabled: true
       Interactive Markers Namespace: /manual_lidar_holes
       Name: Draggable Hole Spheres
-      Show Axes: true
+      Show Axes: false
       Show Descriptions: true
       Show Visual Aids: true
       Update Topic:
