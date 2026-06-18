@@ -122,7 +122,7 @@ timeout 20 bash -lc '
 '
 
 set +e
-timeout 8 ros2 topic hz /livox/lidar >"${output_dir}/livox_hz.txt" 2>&1
+timeout --foreground --signal=INT --kill-after=5s 8 ros2 topic hz /livox/lidar >"${output_dir}/livox_hz.txt" 2>&1 </dev/null
 hz_status=$?
 set -e
 if [[ "$hz_status" -ne 0 && "$hz_status" -ne 124 ]]; then
@@ -136,12 +136,19 @@ ros2 run fast_calib grab_hikvision_png "$image_path" "$camera_serial" "$exposure
 
 echo "Recording ${duration_s}s LiDAR bag..."
 set +e
-timeout "${duration_s}" ros2 bag record /livox/lidar -o "$bag_dir" >"${output_dir}/rosbag_record.log" 2>&1
+timeout --foreground --signal=INT --kill-after=10s "${duration_s}" \
+  ros2 bag record /livox/lidar -o "$bag_dir" >"${output_dir}/rosbag_record.log" 2>&1 </dev/null
 record_status=$?
 set -e
-if [[ "$record_status" -ne 0 && "$record_status" -ne 124 ]]; then
+if [[ "$record_status" -ne 0 && "$record_status" -ne 124 && "$record_status" -ne 130 ]]; then
   cat "${output_dir}/rosbag_record.log" >&2
   exit "$record_status"
+fi
+
+if ! find "$bag_dir" -maxdepth 1 -name '*.db3' -type f -size +0c | grep -q .; then
+  echo "LiDAR bag recording did not produce a non-empty db3 file: $bag_dir" >&2
+  cat "${output_dir}/rosbag_record.log" >&2 || true
+  exit 75
 fi
 
 ros2 bag info "$bag_dir" >"${output_dir}/rosbag_info.txt"
