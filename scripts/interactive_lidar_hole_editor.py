@@ -11,7 +11,7 @@ from rclpy.node import Node
 from sensor_msgs.msg import PointCloud2, PointField
 from std_msgs.msg import Header
 from std_srvs.srv import Trigger
-from visualization_msgs.msg import InteractiveMarker, InteractiveMarkerControl, Marker
+from visualization_msgs.msg import InteractiveMarker, InteractiveMarkerControl, Marker, MarkerArray
 
 
 DEFAULT_NAMES = ["upper +Y", "upper -Y", "lower +Y", "lower -Y"]
@@ -121,6 +121,7 @@ class LidarHoleEditor(Node):
             self.centers = initial_centers_from_cloud(self.points, args.target_width, args.target_height)
 
         self.cloud_pub = self.create_publisher(PointCloud2, "/static_accumulated_cloud", 1)
+        self.marker_pub = self.create_publisher(MarkerArray, "/manual_lidar_hole_markers", 1)
         self.server = InteractiveMarkerServer(self, "manual_lidar_holes")
         self.save_srv = self.create_service(Trigger, "/save_lidar_hole_markers", self.save_callback)
         self.timer = self.create_timer(1.0 / args.rate, self.publish_cloud)
@@ -133,8 +134,50 @@ class LidarHoleEditor(Node):
         self.get_logger().info(f"Current centers file: {self.output_path}")
 
     def publish_cloud(self):
-        self.cloud_msg.header.stamp = self.get_clock().now().to_msg()
+        stamp = self.get_clock().now().to_msg()
+        self.cloud_msg.header.stamp = stamp
         self.cloud_pub.publish(self.cloud_msg)
+        self.marker_pub.publish(self.make_marker_array(stamp))
+
+    def make_marker_array(self, stamp):
+        msg = MarkerArray()
+        for idx, center in enumerate(self.centers):
+            sphere = Marker()
+            sphere.header.frame_id = self.frame_id
+            sphere.header.stamp = stamp
+            sphere.ns = "manual_lidar_hole_markers"
+            sphere.id = idx
+            sphere.type = Marker.SPHERE
+            sphere.action = Marker.ADD
+            sphere.pose.position.x = center["x"]
+            sphere.pose.position.y = center["y"]
+            sphere.pose.position.z = center["z"]
+            sphere.pose.orientation.w = 1.0
+            sphere.scale.x = self.marker_scale
+            sphere.scale.y = self.marker_scale
+            sphere.scale.z = self.marker_scale
+            sphere.color.r, sphere.color.g, sphere.color.b, sphere.color.a = DEFAULT_COLORS[idx]
+            msg.markers.append(sphere)
+
+            label = Marker()
+            label.header.frame_id = self.frame_id
+            label.header.stamp = stamp
+            label.ns = "manual_lidar_hole_labels"
+            label.id = 100 + idx
+            label.type = Marker.TEXT_VIEW_FACING
+            label.action = Marker.ADD
+            label.pose.position.x = center["x"]
+            label.pose.position.y = center["y"]
+            label.pose.position.z = center["z"] + self.marker_scale * 0.85
+            label.pose.orientation.w = 1.0
+            label.scale.z = 0.16
+            label.color.r = 1.0
+            label.color.g = 1.0
+            label.color.b = 1.0
+            label.color.a = 1.0
+            label.text = center["name"]
+            msg.markers.append(label)
+        return msg
 
     def create_markers(self):
         self.server.clear()
