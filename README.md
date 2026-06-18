@@ -128,7 +128,13 @@ The script will:
 7. wait for you to place and save the four hole centers;
 8. run `manual_lidar_centers_calib` and write the final result.
 
+Example RViz2 views:
+
 ![RViz2 interactive LiDAR hole spheres](docs/assets/rviz_interactive_hole_spheres.png)
+
+![RViz2 interactive close-up](docs/assets/rviz_interactive_closeup.png)
+
+![RViz2 interactive sphere adjustment](docs/assets/rviz_interactive_adjustment.png)
 
 In RViz2:
 
